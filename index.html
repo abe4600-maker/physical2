@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フィジカル管理ツール</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --bg-light: #f8fafc;
+            --border: #cbd5e1;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--bg-light);
+            color: #1e293b;
+            margin: 0;
+            padding: 12px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .tab-menu {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .tab-btn {
+            padding: 8px 12px;
+            border: none;
+            background: #e2e8f0;
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            flex: 1;
+            text-align: center;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 16px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+        input[type="text"], input[type="number"], input[type="date"], select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            background: #fff;
+        }
+        textarea {
+            resize: vertical;
+            height: 80px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        /* スマホ向けのレイアウト調整（画面幅600px以下） */
+        @media (max-width: 600px) {
+            body {
+                padding: 8px;
+            }
+            .card {
+                padding: 12px;
+            }
+            .grid-2 {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+            .analytics-controls {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+
+        .btn-action, .btn-success, .btn-danger {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            font-size: 1rem;
+            text-align: center;
+        }
+        .btn-action { background: var(--primary); }
+        .btn-success { background: var(--success); margin-bottom: 16px; }
+        .btn-danger { background: var(--danger); }
+        
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        .exceed-label {
+            color: var(--danger);
+            font-weight: bold;
+            margin-left: 8px;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .analytics-controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .analytics-controls .form-group {
+            flex: 1;
+            min-width: 200px;
+            margin-bottom: 0;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-left: 4px solid var(--primary);
+            padding-left: 8px;
+            margin: 20px 0 12px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px;
+        }
+        th, td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            font-size: 0.85rem;
+        }
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>💪 フィジカル管理ツール</h1>
+
+    <!-- タブメニュー -->
+    <div class="tab-menu">
+        <button class="tab-btn active" onclick="switchTab('record')">毎日のカルテ</button>
+        <button class="tab-btn" onclick="switchTab('analysis')">分析ページ</button>
+        <button class="tab-btn" onclick="switchTab('master')">マスタ設定</button>
+    </div>
+
+    <!-- 1. 毎日の記録ページ -->
+    <div id="tab-record" class="tab-content active">
+        <div class="card">
+            <h2 id="form-heading" style="font-size: 1.2rem; margin-top:0;">毎日のカルテ入力</h2>
+            
+            <!-- 前日内容コピーボタン -->
+            <button type="button" class="btn-success" onclick="copyFromPreviousDay()">📋 前日の内容をそのままコピーする</button>
+
+            <form id="record-form">
+                <div class="form-group">
+                    <label for="record-date">日付 (日本時間)</label>
+                    <input type="date" id="record-date" required>
+                </div>
+
+                <!-- 本日の特記事項 -->
+                <div class="form-group">
+                    <label for="daily-special-note">本日の特記事項（メモ・出来事など）</label>
+                    <textarea id="daily-special-note" placeholder="例: 体調良好、大事なプレゼンがあった など"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="condition">① 体調の記録</label>
+                    <input type="text" id="condition" placeholder="例: 絶好調、少し疲れ気味 など">
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="sleep-hours">② 睡眠時間 (時間) <span id="alert-sleep" class="exceed-label"></span></label>
+                        <input type="number" id="sleep-hours" step="0.5" min="0" max="24" placeholder="例: 7.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="sleep-memo">睡眠 備考欄（メモ）</label>
+                        <input type="text" id="sleep-memo" placeholder="例: 途中覚醒なし">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="weight">③ 体重の記録 (kg) <span id="alert-weight" class="exceed-label"></span></label>
+                    <input type="number" id="weight" step="0.1" placeholder="例: 60.1">
+                </div>
+
+                <!-- 食事記録のメモ欄 -->
+                <div class="form-group">
+                    <label for="diet-memo">食事記録（メモ）</label>
+                    <textarea id="diet-memo" placeholder="例: 朝: 納豆ご飯 / 昼: 鶏胸肉弁当 / 夜: サラダ、プロテイン"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>④ 所見・異常（該当するものにチェック）</label>
+                    <div id="anomaly-checkboxes" class="checkbox-group">
+                        <!-- 動的生成 -->
+                    </div>
+                </div>
+
+                <!-- 異常項目に連動する対策の自動表示欄 -->
+                <div class="form-group">
+                    <label for="anomaly-actions-view" style="color: var(--danger);">💡 選択された異常項目の対策（自動表示）</label>
+                    <textarea id="anomaly-actions-view" readonly placeholder="異常項目にチェックを入れると、対応する対策がここに表示されます。" style="background: #f8fafc; color: #475569;"></textarea>
+                </div>
+
+                <div class="section-title">筋トレ・運動記録</div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>⑤ 筋トレ1 内容項目（メモ）</label>
+                        <input type="text" id="gym1-content" placeholder="例: ベンチプレス">
+                    </div>
+                    <div class="form-group">
+                        <label>筋トレ1 回数項目</label>
+                        <input type="text" id="gym1-count" placeholder="例: 10回×3セット">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>⑥ 筋トレ2 内容項目（メモ）</label>
+                        <input type="text" id="gym2-content" placeholder="例: スクワット">
+                    </div>
+                    <div class="form-group">
+                        <label>筋トレ2 回数項目</label>
+                        <input type="text" id="gym2-count" placeholder="例: 15回×3セット">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>⑦ 筋トレ3 内容項目（メモ）</label>
+                        <input type="text" id="gym3-content" placeholder="例: 腹筋 (プランク)">
+                    </div>
+                    <div class="form-group">
+                        <label>筋トレ3 回数項目</label>
+                        <input type="text" id="gym3-count" placeholder="例: 1分×3セット">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="walking-steps">⑧ ウォーキング 歩数の登録 <span id="alert-walking" class="exceed-label"></span></label>
+                    <input type="number" id="walking-steps" placeholder="例: 8500">
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label for="running-content">⑨ ランニング 内容項目（メモ）</label>
+                        <input type="text" id="running-content" placeholder="例: 外周コース">
+                    </div>
+                    <div class="form-group">
+                        <label for="running-time">ランニング 時間項目</label>
+                        <input type="text" id="running-time" placeholder="例: 30分">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-action" style="margin-top: 16px;">記録を保存する</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 style="font-size: 1.2rem; margin-top:0;">📈 記録一覧・分析</h2>
+            <div class="table-responsive">
+                <table id="records-table">
+                    <thead>
+                        <tr>
+                            <th>日付</th>
+                            <th>体調</th>
+                            <th>睡眠</th>
+                            <th>体重</th>
+                            <th>運動・異常概要</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-tbody">
+                        <!-- 動的挿入 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 分析ページ -->
+    <div id="tab-analysis" class="tab-content">
+        <div class="card">
+            <h2 style="font-size: 1.2rem; margin-top:0;">📊 体重推移グラフ</h2>
+            <p style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 16px;">登録された体重データの推移をグラフで確認できます。基準日および表示単位を変更してください。</p>
+            
+            <div class="analytics-controls">
+                <div class="form-group">
+                    <label for="analysis-base-date">基準日選択</label>
+                    <input type="date" id="analysis-base-date" onchange="updateWeightChart()">
+                </div>
+                <div class="form-group">
+                    <label for="chart-view-mode">表示単位の切り替え</label>
+                    <select id="chart-view-mode" onchange="updateWeightChart()">
+                        <option value="daily">日付単位 (基準日の1週間前〜)</option>
+                        <option value="weekly">週単位 (基準月の週ごと)</option>
+                        <option value="monthly">月平均</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="weightChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. マスタ情報のページ -->
+    <div id="tab-master" class="tab-content">
+        <div class="card">
+            <h2 style="font-size: 1.2rem; margin-top:0;">⚙️ マスタ情報・基準値設定</h2>
+            <p style="color: var(--secondary); font-size: 0.9rem;">身長や基準体重、超過判定の基準値、および異常項目とその対策を設定できます。</p>
+            
+            <form id="master-form">
+                <div class="form-group">
+                    <label for="master-height">身長 (cm)</label>
+                    <input type="number" id="master-height" step="0.1" placeholder="例: 170.0" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="master-weight">初期体重・基本体重 / 標準体重 (kg) <span style="font-size:0.85rem; color:var(--danger)">※グラフの赤線になります</span></label>
+                    <input type="number" id="master-weight" step="0.1" placeholder="例: 60.1" required>
+                </div>
+
+                <div class="section-title">📊 基準値設定 (超過判定のしきい値)</div>
+                <div class="form-group">
+                    <label for="threshold-sleep">睡眠時間 基準上限 (時間)</label>
+                    <input type="number" id="threshold-sleep" step="0.5" placeholder="例: 9.0">
+                </div>
+                <div class="form-group">
+                    <label for="threshold-weight">体重 基準上限 (kg)</label>
+                    <input type="number" id="threshold-weight" step="0.1" placeholder="例: 65.0">
+                </div>
+                <div class="form-group">
+                    <label for="threshold-walking">ウォーキング歩数 基準上限 (歩)</label>
+                    <input type="number" id="threshold-walking" placeholder="例: 15000">
+                </div>
+
+                <div class="section-title">異常項目 & 対策 設定 (最大5項目)</div>
+                
+                <div style="background:#f8fafc; padding:12px; border-radius:6px; margin-bottom:12px;">
+                    <div class="form-group"><label>異常項目 1</label><input type="text" id="anomaly-1" placeholder="例: 関節痛・違和感"></div>
+                    <div class="form-group" style="margin-bottom:0;"><label>対策 1</label><input type="text" id="action-1" placeholder="例: 患部をアイシングし、ストレッチに変更する"></div>
+                </div>
+
+                <div style="background:#f8fafc; padding:12px; border-radius:6px; margin-bottom:12px;">
+                    <div class="form-group"><label>異常項目 2</label><input type="text" id="anomaly-2" placeholder="例: 筋肉痛が残っている"></div>
+                    <div class="form-group" style="margin-bottom:0;"><label>対策 2</label><input type="text" id="action-2" placeholder="例: 軽めの有酸素運動か完全休養にする"></div>
+                </div>
+
+                <div style="background:#f8fafc; padding:12px; border-radius:6px; margin-bottom:12px;">
+                    <div class="form-group"><label>異常項目 3</label><input type="text" id="anomaly-3" placeholder="例: 強い倦怠感"></div>
+                    <div class="form-group" style="margin-bottom:0;"><label>対策 3</label><input type="text" id="action-3" placeholder="例: 水分・栄養を摂り、早めに就寝する"></div>
+                </div>
+
+                <div style="background:#f8fafc; padding:12px; border-radius:6px; margin-bottom:12px;">
+                    <div class="form-group"><label>異常項目 4</label><input type="text" id="anomaly-4" placeholder="未入力でも可"></div>
+                    <div class="form-group" style="margin-bottom:0;"><label>対策 4</label><input type="text" id="action-4" placeholder="未入力でも可"></div>
+                </div>
+
+                <div style="background:#f8fafc; padding:12px; border-radius:6px; margin-bottom:12px;">
+                    <div class="form-group"><label>異常項目 5</label><input type="text" id="anomaly-5" placeholder="未入力でも可"></div>
+                    <div class="form-group" style="margin-bottom:0;"><label>対策 5</label><input type="text" id="action-5" placeholder="未入力でも可"></div>
+                </div>
+
+                <button type="submit" class="btn-action" style="margin-top: 16px;">マスタ・基準値を保存する</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.jsの読み込み -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const STORAGE_KEY_RECORDS = 'physical_records_v_stable';
+    const STORAGE_KEY_MASTER = 'physical_master_v_stable';
+
+    const DEFAULT_MASTER = {
+        height: 170.0,
+        weight: 60.1,
+        thresholdSleep: 9.0,
+        thresholdWeight: 65.0,
+        thresholdWalking: 15000,
+        anomalies: [
+            { name: "関節痛・違和感", action: "患部をアイシングし、ストレッチに変更する" },
+            { name: "筋肉痛が残っている", action: "軽めの有酸素運動か完全休養にする" },
+            { name: "強い倦怠感", action: "水分・栄養を摂り、早めに就寝する" },
+            { name: "睡眠の質の低下", action: "就寝前のスマホを控え、入浴で体を温める" },
+            { name: "食欲不振・胃もたれ", action: "消化の良いものを少量ずつ摂取する" }
+        ]
+    };
+
+    function migrateOldData() {
+        const oldMasterKeys = ['physical_master_stable_v2', 'physical_master'];
+        const oldRecordKeys = ['physical_records_stable_v2', 'physical_records'];
+
+        if (!localStorage.getItem(STORAGE_KEY_MASTER)) {
+            for (let key of oldMasterKeys) {
+                const oldData = localStorage.getItem(key);
+                if (oldData) {
+                    localStorage.setItem(STORAGE_KEY_MASTER, oldData);
+                    break;
+                }
+            }
+        }
+
+        if (!localStorage.getItem(STORAGE_KEY_RECORDS)) {
+            for (let key of oldRecordKeys) {
+                const oldData = localStorage.getItem(key);
+                if (oldData) {
+                    localStorage.setItem(STORAGE_KEY_RECORDS, oldData);
+                    break;
+                }
+            }
+        }
+
+        const data = localStorage.getItem(STORAGE_KEY_MASTER);
+        if (data) {
+            try {
+                const parsed = JSON.parse(data);
+                if (parsed.anomalies && parsed.anomalies.length > 0 && typeof parsed.anomalies[0] === 'string') {
+                    parsed.anomalies = parsed.anomalies.map(name => ({ name: name, action: "特になし" }));
+                    localStorage.setItem(STORAGE_KEY_MASTER, JSON.stringify(parsed));
+                }
+            } catch(e) {}
+        }
+    }
+    migrateOldData();
+
+    let weightChartInstance = null;
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+        if (tabName === 'record') {
+            document.querySelector('.tab-menu button:nth-child(1)').classList.add('active');
+            document.getElementById('tab-record').classList.add('active');
+            renderAnomalyCheckboxes();
+            checkAllThresholds();
+            renderTable();
+        } else if (tabName === 'analysis') {
+            document.querySelector('.tab-menu button:nth-child(2)').classList.add('active');
+            document.getElementById('tab-analysis').classList.add('active');
+            
+            const baseDateInput = document.getElementById('analysis-base-date');
+            if (!baseDateInput.value) {
+                baseDateInput.value = getJSTTodayString();
+            }
+            updateWeightChart();
+        } else {
+            document.querySelector('.tab-menu button:nth-child(3)').classList.add('active');
+            document.getElementById('tab-master').classList.add('active');
+            loadMasterToForm();
+        }
+    }
+
+    function getJSTTodayString() {
+        const now = new Date();
+        const jstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+        return jstDate.toISOString().split('T')[0];
+    }
+
+    function getMaster() {
+        const data = localStorage.getItem(STORAGE_KEY_MASTER);
+        return data ? JSON.parse(data) : DEFAULT_MASTER;
+    }
+
+    function saveMaster(master) {
+        localStorage.setItem(STORAGE_KEY_MASTER, JSON.stringify(master));
+    }
+
+    function getAllRecords() {
+        const data = localStorage.getItem(STORAGE_KEY_RECORDS);
+        return data ? JSON.parse(data) : {};
+    }
+
+    function saveAllRecords(records) {
+        localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
+    }
+
+    function checkAllThresholds() {
+        const master = getMaster();
+
+        const sleepVal = parseFloat(document.getElementById('sleep-hours').value);
+        const alertSleep = document.getElementById('alert-sleep');
+        if (!isNaN(sleepVal) && master.thresholdSleep && sleepVal > master.thresholdSleep) {
+            alertSleep.textContent = `【超過】(基準: ${master.thresholdSleep}h以下)`;
+        } else {
+            alertSleep.textContent = '';
+        }
+
+        const weightVal = parseFloat(document.getElementById('weight').value);
+        const alertWeight = document.getElementById('alert-weight');
+        if (!isNaN(weightVal) && master.thresholdWeight && weightVal > master.thresholdWeight) {
+            alertWeight.textContent = `【超過】(基準: ${master.thresholdWeight}kg以下)`;
+        } else {
+            alertWeight.textContent = '';
+        }
+
+        const walkingVal = parseFloat(document.getElementById('walking-steps').value);
+        const alertWalking = document.getElementById('alert-walking');
+        if (!isNaN(walkingVal) && master.thresholdWalking && walkingVal > master.thresholdWalking) {
+            alertWalking.textContent = `【超過】(基準: ${master.thresholdWalking}歩以下)`;
+        } else {
+            alertWalking.textContent = '';
+        }
+    }
+
+    document.getElementById('sleep-hours').addEventListener('input', checkAllThresholds);
+    document.getElementById('weight').addEventListener('input', checkAllThresholds);
+    document.getElementById('walking-steps').addEventListener('input', checkAllThresholds);
+
+    function updateAnomalyActionsView() {
+        const master = getMaster();
+        const validAnomalies = (master.anomalies || []).filter(item => item && item.name && item.name.trim() !== '');
+        const selectedActions = [];
+
+        validAnomalies.forEach((item, index) => {
+            const chk = document.getElementById(`anomaly-chk-${index}`);
+            if (chk && chk.checked) {
+                if (item.action && item.action.trim() !== '') {
+                    selectedActions.push(`・[${item.name}] 対策: ${item.action}`);
+                } else {
+                    selectedActions.push(`・[${item.name}] 対策: (未設定)`);
+                }
+            }
+        });
+
+        document.getElementById('anomaly-actions-view').value = selectedActions.join('\n');
+    }
+
+    function renderAnomalyCheckboxes(selectedAnomalies = []) {
+        const master = getMaster();
+        const container = document.getElementById('anomaly-checkboxes');
+        container.innerHTML = '';
+
+        const validAnomalies = (master.anomalies || []).filter(item => item && item.name && item.name.trim() !== '');
+
+        if (validAnomalies.length === 0) {
+            container.innerHTML = '<span style="color: var(--secondary); font-size: 0.9rem;">※マスタ設定で異常項目が登録されていません</span>';
+            document.getElementById('anomaly-actions-view').value = '';
+            return;
+        }
+
+        validAnomalies.forEach((item, index) => {
+            const isChecked = selectedAnomalies.includes(item.name);
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            div.innerHTML = `
+                <input type="checkbox" id="anomaly-chk-${index}" value="${item.name}" ${isChecked ? 'checked' : ''} onchange="updateAnomalyActionsView()">
+                <label for="anomaly-chk-${index}" style="margin-bottom:0; font-weight:normal; cursor:pointer;">${item.name} <span style="font-size:0.8rem; color:var(--secondary);">（対策: ${item.action || 'なし'}）</span></label>
+            `;
+            container.appendChild(div);
+        });
+
+        updateAnomalyActionsView();
+    }
+
+    function loadMasterToForm() {
+        const master = getMaster();
+        document.getElementById('master-height').value = master.height;
+        document.getElementById('master-weight').value = master.weight;
+        document.getElementById('threshold-sleep').value = master.thresholdSleep || '';
+        document.getElementById('threshold-weight').value = master.thresholdWeight || '';
+        document.getElementById('threshold-walking').value = master.thresholdWalking || '';
+        
+        const anomalies = master.anomalies || [];
+        for (let i = 0; i < 5; i++) {
+            document.getElementById(`anomaly-${i+1}`).value = anomalies[i] ? anomalies[i].name || '' : '';
+            document.getElementById(`action-${i+1}`).value = anomalies[i] ? anomalies[i].action || '' : '';
+        }
+    }
+
+    document.getElementById('master-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const newMaster = {
+            height: parseFloat(document.getElementById('master-height').value),
+            weight: parseFloat(document.getElementById('master-weight').value),
+            thresholdSleep: document.getElementById('threshold-sleep').value !== '' ? parseFloat(document.getElementById('threshold-sleep').value) : null,
+            thresholdWeight: document.getElementById('threshold-weight').value !== '' ? parseFloat(document.getElementById('threshold-weight').value) : null,
+            thresholdWalking: document.getElementById('threshold-walking').value !== '' ? parseFloat(document.getElementById('threshold-walking').value) : null,
+            anomalies: [
+                { name: document.getElementById('anomaly-1').value.trim(), action: document.getElementById('action-1').value.trim() },
+                { name: document.getElementById('anomaly-2').value.trim(), action: document.getElementById('action-2').value.trim() },
+                { name: document.getElementById('anomaly-3').value.trim(), action: document.getElementById('action-3').value.trim() },
+                { name: document.getElementById('anomaly-4').value.trim(), action: document.getElementById('action-4').value.trim() },
+                { name: document.getElementById('anomaly-5').value.trim(), action: document.getElementById('action-5').value.trim() }
+            ]
+        };
+        saveMaster(newMaster);
+        alert('マスタ情報と基準値を保存しました！');
+        switchTab('record');
+    });
+
+    function initRecordForm() {
+        const todayStr = getJSTTodayString();
+        document.getElementById('record-date').value = todayStr;
+        loadRecordValuesForDate(todayStr);
+        renderAnomalyCheckboxes();
+        renderTable();
+
+        document.getElementById('analysis-base-date').value = todayStr;
+    }
+
+    function fillFormFields(record) {
+        const master = getMaster();
+        document.getElementById('daily-special-note').value = record.dailySpecialNote || '';
+        document.getElementById('condition').value = record.condition || '';
+        document.getElementById('sleep-hours').value = record.sleepHours !== undefined ? record.sleepHours : '';
+        document.getElementById('sleep-memo').value = record.sleepMemo || '';
+        document.getElementById('weight').value = record.weight !== undefined ? record.weight : master.weight;
+        document.getElementById('diet-memo').value = record.dietMemo || '';
+        document.getElementById('gym1-content').value = record.gym1Content || '';
+        document.getElementById('gym1-count').value = record.gym1Count || '';
+        document.getElementById('gym2-content').value = record.gym2Content || '';
+        document.getElementById('gym2-count').value = record.gym2Count || '';
+        document.getElementById('gym3-content').value = record.gym3Content || '';
+        document.getElementById('gym3-count').value = record.gym3Count || '';
+        document.getElementById('walking-steps').value = record.walkingSteps !== undefined ? record.walkingSteps : '';
+        document.getElementById('running-content').value = record.runningContent || '';
+        document.getElementById('running-time').value = record.runningTime || '';
+        renderAnomalyCheckboxes(record.anomalies || []);
+        checkAllThresholds();
+    }
+
+    function loadRecordValuesForDate(dateStr) {
+        const records = getAllRecords();
+        const record = records[dateStr];
+        const master = getMaster();
+
+        if (record) {
+            fillFormFields(record);
+        } else {
+            document.getElementById('daily-special-note').value = '';
+            document.getElementById('condition').value = '';
+            document.getElementById('sleep-hours').value = '';
+            document.getElementById('sleep-memo').value = '';
+
+            const currentDate = new Date(dateStr);
+            currentDate.setDate(currentDate.getDate() - 1);
+            const prevDateStr = currentDate.toISOString().split('T')[0];
+
+            if (records[prevDateStr] && records[prevDateStr].weight !== undefined) {
+                document.getElementById('weight').value = records[prevDateStr].weight;
+            } else {
+                document.getElementById('weight').value = master.weight;
+            }
+
+            document.getElementById('diet-memo').value = '';
+            document.getElementById('gym1-content').value = '';
+            document.getElementById('gym1-count').value = '';
+            document.getElementById('gym2-content').value = '';
+            document.getElementById('gym2-count').value = '';
+            document.getElementById('gym3-content').value = '';
+            document.getElementById('gym3-count').value = '';
+            document.getElementById('walking-steps').value = '';
+            document.getElementById('running-content').value = '';
+            document.getElementById('running-time').value = '';
+            renderAnomalyCheckboxes([]);
+            checkAllThresholds();
+        }
+    }
+
+    window.copyFromPreviousDay = function() {
+        const currentDateStr = document.getElementById('record-date').value;
+        if (!currentDateStr) {
+            alert('先に日付を選択してください。');
+            return;
+        }
+
+        const currentDate = new Date(currentDateStr);
+        currentDate.setDate(currentDate.getDate() - 1);
+        const prevDateStr = currentDate.toISOString().split('T')[0];
+
+        const records = getAllRecords();
+        const prevRecord = records[prevDateStr];
+
+        if (!prevRecord) {
+            alert(`前日 (${prevDateStr}) の保存された記録が見つかりません。`);
+            return;
+        }
+
+        if (confirm(`${prevDateStr} の記録を現在のフォームにコピーしますか？`)) {
+            fillFormFields(prevRecord);
+            alert(`${prevDateStr} の内容をコピーしました！`);
+        }
+    };
+
+    document.getElementById('record-date').addEventListener('change', (e) => {
+        loadRecordValuesForDate(e.target.value);
+    });
+
+    document.getElementById('record-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const dateStr = document.getElementById('record-date').value;
+        if (!dateStr) return;
+
+        const checkedAnomalies = [];
+        const master = getMaster();
+        const validAnomalies = (master.anomalies || []).filter(item => item && item.name && item.name.trim() !== '');
+
+        validAnomalies.forEach((item, index) => {
+            const chk = document.getElementById(`anomaly-chk-${index}`);
+            if (chk && chk.checked) {
+                checkedAnomalies.push(chk.value);
+            }
+        });
+
+        const recordData = {
+            date: dateStr,
+            dailySpecialNote: document.getElementById('daily-special-note').value,
+            condition: document.getElementById('condition').value,
+            sleepHours: document.getElementById('sleep-hours').value,
+            sleepMemo: document.getElementById('sleep-memo').value,
+            weight: document.getElementById('weight').value !== '' ? parseFloat(document.getElementById('weight').value) : '',
+            dietMemo: document.getElementById('diet-memo').value,
+            anomalies: checkedAnomalies,
+            gym1Content: document.getElementById('gym1-content').value,
+            gym1Count: document.getElementById('gym1-count').value,
+            gym2Content: document.getElementById('gym2-content').value,
+            gym2Count: document.getElementById('gym2-count').value,
+            gym3Content: document.getElementById('gym3-content').value,
+            gym3Count: document.getElementById('gym3-count').value,
+            walkingSteps: document.getElementById('walking-steps').value,
+            runningContent: document.getElementById('running-content').value,
+            runningTime: document.getElementById('running-time').value,
+        };
+
+        const records = getAllRecords();
+        records[dateStr] = recordData;
+        saveAllRecords(records);
+
+        alert(`${dateStr} のカルテを保存しました！`);
+        renderTable();
+    });
+
+    window.deleteRecord = function(dateStr) {
+        if (confirm(`${dateStr} の記録を削除しますか？`)) {
+            const records = getAllRecords();
+            delete records[dateStr];
+            saveAllRecords(records);
+            loadRecordValuesForDate(document.getElementById('record-date').value);
+            renderTable();
+        }
+    };
+
+    window.editRecord = function(dateStr) {
+        document.getElementById('record-date').value = dateStr;
+        loadRecordValuesForDate(dateStr);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function renderTable() {
+        const records = getAllRecords();
+        const tbody = document.getElementById('records-tbody');
+        tbody.innerHTML = '';
+
+        const sortedDates = Object.keys(records).sort().reverse();
+
+        if (sortedDates.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--secondary);">記録がまだありません</td></tr>`;
+            return;
+        }
+
+        sortedDates.forEach(dateStr => {
+            const r = records[dateStr];
+            const tr = document.createElement('tr');
+            
+            let summaries = [];
+            if (r.dailySpecialNote) summaries.push(`特記: ${r.dailySpecialNote}`);
+            if (r.dietMemo) summaries.push(`食事: ${r.dietMemo}`);
+            if (r.anomalies && r.anomalies.length > 0) {
+                summaries.push(`<span style="color:var(--danger)">異常: ${r.anomalies.join(', ')}</span>`);
+            }
+            if (r.gym1Content) summaries.push(`筋トレ1: ${r.gym1Content}`);
+            if (r.walkingSteps) summaries.push(`歩数: ${r.walkingSteps}歩`);
+            const summaryText = summaries.length > 0 ? summaries.join(' / ') : '特になし';
+
+            tr.innerHTML = `
+                <td><strong>${r.date}</strong></td>
+                <td>${r.condition || '-'}</td>
+                <td>${r.sleepHours !== '' ? r.sleepHours + 'h' : '-'}</td>
+                <td>${r.weight !== '' ? r.weight + ' kg' : '-'}</td>
+                <td>${summaryText}</td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        <button onclick="editRecord('${r.date}')" style="padding: 4px 8px; font-size: 0.8rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">編集</button>
+                        <button class="btn-danger" onclick="deleteRecord('${r.date}')" style="padding: 4px 8px; font-size: 0.8rem; width: auto;">削除</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function getMonthKey(dateStr) {
+        return dateStr.substring(0, 7);
+    }
+
+    function updateWeightChart() {
+        const records = getAllRecords();
+        const master = getMaster();
+        const mode = document.getElementById('chart-view-mode').value;
+        const baseDateStr = document.getElementById('analysis-base-date').value || getJSTTodayString();
+
+        let labels = [];
+        let dataValues = [];
+
+        if (mode === 'daily') {
+            const baseDate = new Date(baseDateStr);
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(baseDate);
+                d.setDate(baseDate.getDate() - i);
+                const dStr = d.toISOString().split('T')[0];
+                
+                labels.push(dStr);
+                if (records[dStr] && records[dStr].weight !== '' && !isNaN(records[dStr].weight)) {
+                    dataValues.push(records[dStr].weight);
+                } else {
+                    dataValues.push(null);
+                }
+            }
+        } else if (mode === 'weekly') {
+            const baseDate = new Date(baseDateStr);
+            const targetYear = baseDate.getFullYear();
+            const targetMonth = baseDate.getMonth();
+
+            const weekMap = {};
+            const dateCursor = new Date(targetYear, targetMonth, 1);
+            while (dateCursor.getMonth() === targetMonth) {
+                const dStr = dateCursor.toISOString().split('T')[0];
+                const dayNum = dateCursor.getDate();
+                const weekNum = Math.ceil(dayNum / 7);
+                const weekLabel = `${targetYear}年${targetMonth + 1}月 第${weekNum}週`;
+
+                if (!weekMap[weekLabel]) {
+                    weekMap[weekLabel] = { sum: 0, count: 0 };
+                }
+
+                if (records[dStr] && records[dStr].weight !== '' && !isNaN(records[dStr].weight)) {
+                    weekMap[weekLabel].sum += parseFloat(records[dStr].weight);
+                    weekMap[weekLabel].count += 1;
+                }
+
+                dateCursor.setDate(dateCursor.getDate() + 1);
+            }
+
+            Object.keys(weekMap).forEach(wk => {
+                labels.push(wk);
+                const obj = weekMap[wk];
+                if (obj.count > 0) {
+                    dataValues.push(parseFloat((obj.sum / obj.count).toFixed(1)));
+                } else {
+                    dataValues.push(null);
+                }
+            });
+        } else if (mode === 'monthly') {
+            const monthMap = {};
+            Object.keys(records).sort().forEach(dateStr => {
+                const r = records[dateStr];
+                if (r.weight !== '' && !isNaN(r.weight)) {
+                    const mk = getMonthKey(dateStr);
+                    if (!monthMap[mk]) monthMap[mk] = { sum: 0, count: 0 };
+                    monthMap[mk].sum += parseFloat(r.weight);
+                    monthMap[mk].count += 1;
+                }
+            });
+            Object.keys(monthMap).sort().forEach(mk => {
+                labels.push(mk + '月');
+                dataValues.push(parseFloat((monthMap[mk].sum / monthMap[mk].count).toFixed(1)));
+            });
+        }
+
+        const standardWeight = master.weight || 60.1;
+
+        const ctx = document.getElementById('weightChart').getContext('2d');
+        if (weightChartInstance) {
+            weightChartInstance.destroy();
+        }
+
+        weightChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '体重 (kg)',
+                        data: dataValues,
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true,
+                        pointRadius: 4,
+                        spanGaps: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 45,
+                        max: 80,
+                        title: {
+                            display: true,
+                            text: '体重 (kg)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: mode === 'daily' ? '日付 (1週間分)' : (mode === 'weekly' ? '基準月の週' : '月')
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.parsed.y;
+                                if (val === null) return ' 記録なし';
+                                return ` 体重: ${val} kg`;
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [{
+                id: 'standardWeightLine',
+                afterDraw: function(chart) {
+                    const yScale = chart.scales.y;
+                    const xScale = chart.scales.x;
+                    const yValue = standardWeight;
+
+                    if (yValue >= yScale.min && yValue <= yScale.max) {
+                        const yPixel = yScale.getPixelForValue(yValue);
+                        const ctx = chart.ctx;
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(xScale.left, yPixel);
+                        ctx.lineTo(xScale.right, yPixel);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.setLineDash([6, 6]);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#ef4444';
+                        ctx.font = '12px sans-serif';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`標準体重: ${yValue}kg`, xScale.right - 5, yPixel - 6);
+                        ctx.restore();
+                    }
+                }
+            }]
+        });
+    }
+
+    initRecordForm();
+</script>
+
+</body>
+</html>
